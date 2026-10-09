@@ -105,7 +105,13 @@ Item {
   readonly property real overlayGap: reservesSpace ? 0 : Style.gapsOut
   // A reserved strip keeps Hyprland's outer gap around the panel on every side
   // but the one facing the windows, which already keep that gap themselves.
-  readonly property real reserveGap: reservesSpace ? Style.gapsOut : 0
+  // Style.gapsOut is half of general:gaps_out, so read the real value.
+  property var windowGaps: ({ top: 10, right: 10, bottom: 10, left: 10 })
+  readonly property real reserveGap: !reservesSpace ? 0
+    : effectiveEdge === "left" ? windowGaps.left
+    : effectiveEdge === "top" ? windowGaps.top
+    : effectiveEdge === "bottom" ? windowGaps.bottom
+    : windowGaps.right
   readonly property string barPosition: bar ? String(bar.position || "top") : "top"
   readonly property real barInset: bar ? Number(bar.barSize || 0) : 0
   readonly property string openTrigger: {
@@ -142,13 +148,13 @@ Item {
     var options = verticalEdge ? ["top", "center", "bottom"] : ["left", "center", "right"]
     return options.indexOf(value) >= 0 ? value : "center"
   }
-  readonly property real sidePanelInsetTop: reservesSpace ? (effectiveEdge === "bottom" ? 0 : reserveGap)
+  readonly property real sidePanelInsetTop: reservesSpace ? (effectiveEdge === "bottom" ? 0 : windowGaps.top)
     : overlayGap + (barPosition === "top" ? barInset : 0)
-  readonly property real sidePanelInsetRight: reservesSpace ? (effectiveEdge === "left" ? 0 : reserveGap)
+  readonly property real sidePanelInsetRight: reservesSpace ? (effectiveEdge === "left" ? 0 : windowGaps.right)
     : overlayGap + (barPosition === "right" ? barInset : 0)
-  readonly property real sidePanelInsetBottom: reservesSpace ? (effectiveEdge === "top" ? 0 : reserveGap)
+  readonly property real sidePanelInsetBottom: reservesSpace ? (effectiveEdge === "top" ? 0 : windowGaps.bottom)
     : overlayGap + (barPosition === "bottom" ? barInset : 0)
-  readonly property real sidePanelInsetLeft: reservesSpace ? (effectiveEdge === "right" ? 0 : reserveGap)
+  readonly property real sidePanelInsetLeft: reservesSpace ? (effectiveEdge === "right" ? 0 : windowGaps.left)
     : overlayGap + (barPosition === "left" ? barInset : 0)
   // An overlay surface covers its whole screen, so measure the screen: until the
   // surface maps, its size follows its implicit size, which depends on these values.
@@ -3214,5 +3220,36 @@ Item {
 
   SidePanelBlurSettings {
     active: root.blurBackground
+  }
+
+  // general:gaps_out as CSS-style "top right bottom left". Re-read when the
+  // shell's Style picks up a new value (startup and theme changes).
+  Process {
+    id: windowGapsProc
+    command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var json = JSON.parse(text || "{}")
+          var parts = (String(json.css || "").match(/-?\d+(?:\.\d+)?/g) || []).map(Number)
+          if (parts.length === 0 && isFinite(Number(json.int))) parts = [Number(json.int)]
+          if (parts.length === 0) return
+          var top = parts[0]
+          var right = parts.length > 1 ? parts[1] : top
+          var bottom = parts.length > 2 ? parts[2] : top
+          var left = parts.length > 3 ? parts[3] : right
+          root.windowGaps = { top: top, right: right, bottom: bottom, left: left }
+        } catch (e) {
+          // hyprctl missing or not Hyprland: keep the previous gaps.
+        }
+      }
+    }
+  }
+
+  Connections {
+    target: Style
+    function onGapsOutChanged() { windowGapsProc.running = true }
   }
 }
