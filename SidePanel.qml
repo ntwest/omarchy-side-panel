@@ -103,6 +103,9 @@ Item {
     && setting("blurBackground", true) === true
   readonly property bool transparentBackground: glassSurface
   readonly property real overlayGap: reservesSpace ? 0 : Style.gapsOut
+  // A reserved strip keeps Hyprland's outer gap around the panel on every side
+  // but the one facing the windows, which already keep that gap themselves.
+  readonly property real reserveGap: reservesSpace ? Style.gapsOut : 0
   readonly property string barPosition: bar ? String(bar.position || "top") : "top"
   readonly property real barInset: bar ? Number(bar.barSize || 0) : 0
   readonly property string openTrigger: {
@@ -124,6 +127,8 @@ Item {
   readonly property real sidePanelExtent: resizingSidePanel && sidePanelResizeAxis === "edge"
     ? boundedSidePanelExtent(sidePanelResizePreview, "edge")
     : boundedSidePanelExtent(configuredExtent, "edge")
+  // The reserved strip: the panel plus its outer gap.
+  readonly property real sidePanelSurfaceExtent: sidePanelExtent + reserveGap
   readonly property real configuredOverlayCrossExtent: SidePanelModel.boundedEdgeSize(setting("overlayCrossSize", 0), 0)
   readonly property real overlayCrossExtent: {
     if (reservesSpace) return 0
@@ -137,13 +142,13 @@ Item {
     var options = verticalEdge ? ["top", "center", "bottom"] : ["left", "center", "right"]
     return options.indexOf(value) >= 0 ? value : "center"
   }
-  readonly property real sidePanelInsetTop: reservesSpace ? 0
+  readonly property real sidePanelInsetTop: reservesSpace ? (effectiveEdge === "bottom" ? 0 : reserveGap)
     : overlayGap + (barPosition === "top" ? barInset : 0)
-  readonly property real sidePanelInsetRight: reservesSpace ? 0
+  readonly property real sidePanelInsetRight: reservesSpace ? (effectiveEdge === "left" ? 0 : reserveGap)
     : overlayGap + (barPosition === "right" ? barInset : 0)
-  readonly property real sidePanelInsetBottom: reservesSpace ? 0
+  readonly property real sidePanelInsetBottom: reservesSpace ? (effectiveEdge === "top" ? 0 : reserveGap)
     : overlayGap + (barPosition === "bottom" ? barInset : 0)
-  readonly property real sidePanelInsetLeft: reservesSpace ? 0
+  readonly property real sidePanelInsetLeft: reservesSpace ? (effectiveEdge === "right" ? 0 : reserveGap)
     : overlayGap + (barPosition === "left" ? barInset : 0)
   // An overlay surface covers its whole screen, so measure the screen: until the
   // surface maps, its size follows its implicit size, which depends on these values.
@@ -158,7 +163,8 @@ Item {
     // In Reserve Space mode the surface contracts together with the Side Panel,
     // so use the physical screen for the edge-axis bound.
     if (axis === "edge" && reservesSpace && sidePanelScreen)
-      return Math.min(SidePanelModel.MAX_EDGE_SIZE, verticalEdge ? sidePanelScreen.width : sidePanelScreen.height)
+      return Math.min(SidePanelModel.MAX_EDGE_SIZE,
+        (verticalEdge ? sidePanelScreen.width : sidePanelScreen.height) - reserveGap)
     var available = axis === "edge"
       ? (verticalEdge ? sidePanelAvailableWidth : sidePanelAvailableHeight)
       : (verticalEdge ? sidePanelAvailableHeight : sidePanelAvailableWidth)
@@ -186,10 +192,10 @@ Item {
   // Edge so opening reads as a quick slide rather than a fade-in.
   property real panelRevealProgress: 0
   readonly property real panelRevealOffsetX: verticalEdge
-    ? (effectiveEdge === "left" ? -(1 - panelRevealProgress) * sidePanelExtent : (1 - panelRevealProgress) * sidePanelExtent)
+    ? (effectiveEdge === "left" ? -(1 - panelRevealProgress) * sidePanelSurfaceExtent : (1 - panelRevealProgress) * sidePanelSurfaceExtent)
     : 0
   readonly property real panelRevealOffsetY: !verticalEdge
-    ? (effectiveEdge === "top" ? -(1 - panelRevealProgress) * sidePanelExtent : (1 - panelRevealProgress) * sidePanelExtent)
+    ? (effectiveEdge === "top" ? -(1 - panelRevealProgress) * sidePanelSurfaceExtent : (1 - panelRevealProgress) * sidePanelSurfaceExtent)
     : 0
   readonly property color foreground: Color.popups.text
   readonly property color transparentTextForeground: Color.bar.text
@@ -2128,15 +2134,15 @@ Item {
       Region {
         intersection: Intersection.Subtract
         x: root.verticalEdge && root.effectiveEdge === "right"
-          ? outsideClickSurface.width - Math.min(root.sidePanelExtent + root.sidePanelResizeHitSlop, outsideClickSurface.width) : 0
+          ? outsideClickSurface.width - Math.min(root.sidePanelSurfaceExtent + root.sidePanelResizeHitSlop, outsideClickSurface.width) : 0
         y: !root.verticalEdge && root.effectiveEdge === "bottom"
-          ? outsideClickSurface.height - Math.min(root.sidePanelExtent + root.sidePanelResizeHitSlop, outsideClickSurface.height) : 0
+          ? outsideClickSurface.height - Math.min(root.sidePanelSurfaceExtent + root.sidePanelResizeHitSlop, outsideClickSurface.height) : 0
         width: root.verticalEdge
-          ? Math.min(root.sidePanelExtent + root.sidePanelResizeHitSlop, outsideClickSurface.width)
+          ? Math.min(root.sidePanelSurfaceExtent + root.sidePanelResizeHitSlop, outsideClickSurface.width)
           : outsideClickSurface.width
         height: root.verticalEdge
           ? outsideClickSurface.height
-          : Math.min(root.sidePanelExtent + root.sidePanelResizeHitSlop, outsideClickSurface.height)
+          : Math.min(root.sidePanelSurfaceExtent + root.sidePanelResizeHitSlop, outsideClickSurface.height)
       }
     }
 
@@ -2224,9 +2230,9 @@ Item {
     }
 
     implicitWidth: root.verticalEdge
-      ? Math.min(root.sidePanelExtent, screen ? screen.width : root.sidePanelExtent) : 0
+      ? Math.min(root.sidePanelSurfaceExtent, screen ? screen.width : root.sidePanelSurfaceExtent) : 0
     implicitHeight: root.verticalEdge ? 0
-      : Math.min(root.sidePanelExtent, screen ? screen.height : root.sidePanelExtent)
+      : Math.min(root.sidePanelSurfaceExtent, screen ? screen.height : root.sidePanelSurfaceExtent)
 
     Shortcut {
       sequence: "Escape"
@@ -2397,14 +2403,17 @@ Item {
         x: root.panelRevealOffsetX
         y: root.panelRevealOffsetY
       }
-      radius: root.reservesSpace ? 0 : Style.cornerRadius
+      radius: Style.cornerRadius
+      // The reserved strip's blur skips fully transparent pixels, so a glass
+      // panel keeps a trace of alpha to be blurred in its own rounded shape.
       color: !root.glassSurface
         ? Color.popups.background
         : (root.reservesSpace
-          ? "transparent"
+          ? Qt.rgba(Color.popups.background.r, Color.popups.background.g,
+            Color.popups.background.b, 0.01)
           : Qt.rgba(Color.popups.background.r, Color.popups.background.g,
             Color.popups.background.b, 0.72))
-      border.width: root.reservesSpace || root.glassSurface ? 0 : 1
+      border.width: root.glassSurface ? 0 : 1
       border.color: root.glassSurface ? "transparent" : Color.popups.border
 
       MouseArea {

@@ -4,7 +4,7 @@
 // namespaced to the Side Panel's layer surface.
 var HANDLE = "gshulga_side_panel_blur_rule"
 var VERSION_HANDLE = "gshulga_side_panel_blur_rule_version"
-var RULE_VERSION = 1
+var RULE_VERSION = 2
 var RULE_NAME = "gshulga-side-panel-blur"
 var NAMESPACE = "gshulga-side-panel"
 
@@ -19,6 +19,7 @@ function ruleExpression(enabled) {
     + "    match = { namespace = \"" + NAMESPACE + "\" },\n"
     + "    blur = true,\n"
     + "    xray = true,\n"
+    + "    ignore_alpha = 0,\n"
     + "  })\n"
     + "  " + VERSION_HANDLE + " = " + RULE_VERSION + "\n"
     + "end\n"
