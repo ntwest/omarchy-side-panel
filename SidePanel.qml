@@ -145,8 +145,12 @@ Item {
     : overlayGap + (barPosition === "bottom" ? barInset : 0)
   readonly property real sidePanelInsetLeft: reservesSpace ? 0
     : overlayGap + (barPosition === "left" ? barInset : 0)
-  readonly property real sidePanelAvailableWidth: Math.max(0, surface.width - sidePanelInsetLeft - sidePanelInsetRight)
-  readonly property real sidePanelAvailableHeight: Math.max(0, surface.height - sidePanelInsetTop - sidePanelInsetBottom)
+  // An overlay surface covers its whole screen, so measure the screen: until the
+  // surface maps, its size follows its implicit size, which depends on these values.
+  readonly property real surfaceWidth: !reservesSpace && sidePanelScreen ? sidePanelScreen.width : surface.width
+  readonly property real surfaceHeight: !reservesSpace && sidePanelScreen ? sidePanelScreen.height : surface.height
+  readonly property real sidePanelAvailableWidth: Math.max(0, surfaceWidth - sidePanelInsetLeft - sidePanelInsetRight)
+  readonly property real sidePanelAvailableHeight: Math.max(0, surfaceHeight - sidePanelInsetTop - sidePanelInsetBottom)
   readonly property real sidePanelResizeHitSlop: settingsOpen && panelResizeMode
     ? Math.round(Style.space(16)) : 0
 

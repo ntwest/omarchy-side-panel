@@ -315,7 +315,7 @@ Item {
 
       Text { text: "BEHAVIOR"; color: root.foreground; opacity: 0.6; font.family: Style.font.family; font.pixelSize: Style.font.caption }
 
-      Row {
+      Item {
         width: parent.width
         height: Math.max(animationLabel.implicitHeight, animationToggle.implicitHeight)
         Row {
@@ -339,7 +339,7 @@ Item {
 
       Text { text: "OPENING"; color: root.foreground; opacity: 0.6; font.family: Style.font.family; font.pixelSize: Style.font.caption }
 
-      Row {
+      Item {
         width: parent.width
         height: Math.max(openTriggerLabel.implicitHeight, openTriggerSelector.height)
         Row {
@@ -450,7 +450,7 @@ Item {
         }
       }
 
-      Row {
+      Item {
         visible: root.openTrigger === "hover"
         width: parent.width
         height: visible ? Math.max(revealLabel.implicitHeight, delayControl.implicitHeight) : 0
